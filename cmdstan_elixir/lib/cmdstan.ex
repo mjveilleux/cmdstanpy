@@ -3,10 +3,10 @@ defmodule CmdStan do
   Elixir interface to CmdStan.
 
   This library provides functionality to download, install, and manage
-  CmdStan releases from GitHub.
+  CmdStan releases from GitHub, similar to the Python CmdStanPy library.
   """
 
-  alias CmdStan.Installer
+  alias CmdStan.{Installer, Model}
 
   @doc """
   Install CmdStan from GitHub releases.
@@ -35,5 +35,49 @@ defmodule CmdStan do
   @spec install_cmdstan(keyword()) :: :ok | {:error, term()}
   def install_cmdstan(opts \\ []) do
     Installer.install_cmdstan(opts)
+  end
+
+  @doc """
+  Compile a Stan model file to an executable.
+
+  ## Parameters
+  - `stan_file`: Path to the Stan model file (.stan)
+
+  ## Returns
+  A map containing model information or an error tuple.
+
+  ## Examples
+
+      iex> CmdStan.compile_model("model.stan")
+      {:ok, %{name: "model", stan_file: "model.stan", exe_file: "model"}}
+
+  """
+  @spec compile_model(String.t()) :: {:ok, map()} | {:error, term()}
+  def compile_model(stan_file) do
+    Model.compile(stan_file)
+  end
+
+  @doc """
+  Run MCMC sampling on a compiled model.
+
+  ## Parameters
+  - `model`: Model map returned by `compile_model/1`
+  - `data`: Data map in Stan format
+  - `opts`: Sampling options (chains, iterations, etc.)
+
+  ## Returns
+  A result map containing draws, metadata, and diagnostics.
+
+  ## Examples
+
+      iex> model = %{exe_file: "bernoulli"}
+      iex> data = %{"N" => 10, "y" => [0,1,0,0,0,0,0,0,0,1]}
+      iex> CmdStan.sample(model, data, chains: 1, iter: 100)
+      {:ok, %{draws: %{"theta" => [0.2, 0.3, ...]}, metadata: %{...}, diagnostics: %{...}}}
+
+  """
+  @spec sample(map(), map(), keyword()) :: {:ok, map()} | {:error, term()}
+  def sample(model, data, opts \\ []) do
+    Model.sample(model, data, opts)
   end
 end

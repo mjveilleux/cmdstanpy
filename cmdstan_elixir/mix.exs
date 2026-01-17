@@ -25,6 +25,7 @@ defmodule CmdStan.MixProject do
       {:httpoison, "~> 2.0"},
       {:hackney, "~> 1.18"},
       {:jason, "~> 1.4"},
+      {:nimble_csv, "~> 1.2"},
       {:progress_bar, "~> 2.0"},
       {:toml, "~> 0.7"},
       {:logger_file_backend, "~> 0.0.13"}
