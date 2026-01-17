@@ -68,13 +68,15 @@ defmodule CmdStan.Model do
   """
   @spec sample(map(), map(), keyword()) :: {:ok, map()} | {:error, term()}
   def sample(model, data, opts \\ []) do
+    chains = opts[:chains] || 1
+
     with {:ok, exe_path} <- validate_model_executable(model),
          {:ok, data_file} <- prepare_data_file(data),
          {:ok, output_dir} <- prepare_output_dir(opts),
          :ok <- copy_data_file_to_output_dir(data_file, output_dir),
          {:ok, args} <- build_sample_args(opts),
-         {:ok, csv_file} <- Runner.run_model(exe_path, args, output_dir),
-         {:ok, result} <- CSVParser.parse(csv_file) do
+         {:ok, csv_files} <- Runner.run_model(exe_path, args, output_dir, chains),
+         {:ok, result} <- parse_csv_files(csv_files) do
       # Clean up temporary data file
       File.rm(data_file)
 
@@ -82,7 +84,7 @@ defmodule CmdStan.Model do
       final_result = %{
         draws: result.draws,
         metadata: %{
-          chains: opts[:chains] || 1,
+          chains: chains,
           iterations: opts[:iter] || 1000,
           parameters: result.parameters,
           total_draws: result.metadata.total_draws
@@ -90,7 +92,9 @@ defmodule CmdStan.Model do
         diagnostics: %{
           # Placeholder - would need to parse from CSV
           divergences: 0
-        }
+        },
+        # Store CSV files for summary function
+        csv_files: csv_files
       }
 
       {:ok, final_result}
@@ -207,6 +211,15 @@ defmodule CmdStan.Model do
     case File.cp(data_file, expected_path) do
       :ok -> :ok
       {:error, reason} -> {:error, {:data_file_copy, reason}}
+    end
+  end
+
+  defp parse_csv_files(csv_files) do
+    # For now, parse the first CSV file
+    # TODO: Merge results from all chains
+    case CSVParser.parse(hd(csv_files)) do
+      {:ok, result} -> {:ok, result}
+      error -> error
     end
   end
 

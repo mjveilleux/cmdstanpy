@@ -6,7 +6,7 @@ defmodule CmdStan do
   CmdStan releases from GitHub, similar to the Python CmdStanPy library.
   """
 
-  alias CmdStan.{Installer, Model}
+  alias CmdStan.{Installer, Model, Summary}
 
   @doc """
   Install CmdStan from GitHub releases.
@@ -79,5 +79,27 @@ defmodule CmdStan do
   @spec sample(map(), map(), keyword()) :: {:ok, map()} | {:error, term()}
   def sample(model, data, opts \\ []) do
     Model.sample(model, data, opts)
+  end
+
+  @doc """
+  Compute summary statistics for MCMC fit results.
+
+  ## Parameters
+  - `fit`: Fit result from `sample/3`
+  - `opts`: Summary options (percentiles, significant figures)
+
+  ## Returns
+  A list of maps containing summary statistics for each variable.
+
+  ## Examples
+
+      iex> fit = CmdStan.sample(model, data, chains: 4, iter: 1000)
+      iex> {:ok, summary} = CmdStan.summary(fit)
+      iex> Enum.find(summary, &(&1.variable == "theta"))
+
+  """
+  @spec summary(map(), keyword()) :: {:ok, [map()]} | {:error, term()}
+  def summary(fit, opts \\ []) do
+    Summary.summary(fit, opts)
   end
 end

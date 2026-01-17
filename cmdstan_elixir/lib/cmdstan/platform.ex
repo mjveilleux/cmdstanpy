@@ -178,4 +178,40 @@ defmodule CmdStan.Platform do
   def final_arch do
     env_arch() || arch_string()
   end
+
+  @doc """
+  Get the path to the CmdStan installation directory.
+  """
+  @spec cmdstan_path() :: String.t() | nil
+  def cmdstan_path do
+    # Check environment variable first
+    case System.get_env("CMDSTAN") do
+      nil ->
+        # Try default location
+        default_path = Path.expand("~/.cmdstan")
+
+        if File.exists?(default_path) do
+          # Find the latest version
+          case File.ls(default_path) do
+            {:ok, entries} ->
+              cmdstan_dirs = Enum.filter(entries, &String.starts_with?(&1, "cmdstan-"))
+
+              if Enum.empty?(cmdstan_dirs) do
+                nil
+              else
+                latest = Enum.max(cmdstan_dirs)
+                Path.join(default_path, latest)
+              end
+
+            _ ->
+              nil
+          end
+        else
+          nil
+        end
+
+      path ->
+        path
+    end
+  end
 end
