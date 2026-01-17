@@ -58,6 +58,38 @@ defmodule CmdStan do
   end
 
   @doc """
+  Run gradient diagnostics on a compiled model.
+
+  Compares automatic differentiation gradients with finite difference gradients
+  to validate model implementation.
+
+  ## Parameters
+  - `model`: Model map returned by `compile_model/1`
+  - `opts`: Diagnostic options
+    - `:data` - Data map in Stan format (required)
+    - `:inits` - Initial parameter values
+    - `:epsilon` - Step size for finite difference gradients (default: 1e-6)
+    - `:error` - Absolute error threshold (default: 1e-6)
+    - `:sig_figs` - Numerical precision for output
+    - `:require_gradients_ok` - Whether to raise error if gradients exceed threshold
+
+  ## Returns
+  A result map containing diagnostics and metadata.
+
+  ## Examples
+
+      iex> model = %{exe_file: "bernoulli"}
+      iex> data = %{"N" => 10, "y" => [0,1,0,0,0,0,0,0,0,1]}
+      iex> CmdStan.diagnose(model, data: data)
+      {:ok, %{diagnostics: [%{param_idx: 0, value: 0.5, model: -0.123, finite_diff: -0.124, error: 0.001}], metadata: %{...}}}
+
+  """
+  @spec diagnose(map(), keyword()) :: {:ok, map()} | {:error, term()}
+  def diagnose(model, opts \\ []) do
+    Model.diagnose(model, opts)
+  end
+
+  @doc """
   Run MCMC sampling on a compiled model.
 
   ## Parameters
@@ -79,6 +111,30 @@ defmodule CmdStan do
   @spec sample(map(), map(), keyword()) :: {:ok, map()} | {:error, term()}
   def sample(model, data, opts \\ []) do
     Model.sample(model, data, opts)
+  end
+
+  @doc """
+  Run MCMC diagnostics on sampling results.
+
+  Checks for sampling issues like divergent transitions, low E-BFMI values,
+  low effective sample sizes, and high R-hat values.
+
+  ## Parameters
+  - `fit`: Fit result from `sample/3`
+
+  ## Returns
+  A string containing the diagnostic output.
+
+  ## Examples
+
+      iex> fit = CmdStan.sample(model, data, chains: 4, iter: 1000)
+      iex> CmdStan.diagnose_fit(fit)
+      "Checking sampler transitions treedepth.\\nTreedepth satisfactory for all transitions.\\n...\\n"
+
+  """
+  @spec diagnose_fit(map()) :: {:ok, String.t()} | {:error, term()}
+  def diagnose_fit(fit) do
+    Model.diagnose_fit(fit)
   end
 
   @doc """

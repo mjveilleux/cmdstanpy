@@ -47,6 +47,93 @@ defmodule CmdStan.ModelTest do
     end
   end
 
+  describe "diagnose/2" do
+    test "validates model has executable" do
+      model = %{name: "test"}
+      opts = [data: %{"N" => 5}]
+
+      assert {:error, {:executable_not_found, nil}} = CmdStan.Model.diagnose(model, opts)
+    end
+
+    test "requires data parameter" do
+      model = %{exe_file: "/fake/path"}
+
+      assert {:error, {:data_file_error, :no_data_provided}} = CmdStan.Model.diagnose(model, [])
+    end
+
+    test "accepts diagnose options" do
+      model = %{exe_file: "/fake/path"}
+      data = %{"N" => 5}
+
+      opts = [
+        data: data,
+        epsilon: 1.0e-8,
+        error: 1.0e-8,
+        sig_figs: 10,
+        require_gradients_ok: false
+      ]
+
+      result = CmdStan.Model.diagnose(model, opts)
+      # Will fail because exe doesn't exist
+      assert match?({:error, _}, result)
+    end
+
+    test "handles inits parameter" do
+      model = %{exe_file: "/fake/path"}
+      data = %{"N" => 5}
+      inits = %{"theta" => 0.5}
+
+      result = CmdStan.Model.diagnose(model, data: data, inits: inits)
+      # Will fail because exe doesn't exist
+      assert match?({:error, _}, result)
+    end
+
+    test "handles inits file path" do
+      model = %{exe_file: "/fake/path"}
+      data = %{"N" => 5}
+
+      # Create a temporary inits file
+      temp_inits = Path.join(System.tmp_dir!(), "test_inits.json")
+      File.write!(temp_inits, "{\"theta\": 0.5}")
+
+      try do
+        result = CmdStan.Model.diagnose(model, data: data, inits: temp_inits)
+        # Will fail because exe doesn't exist
+        assert match?({:error, _}, result)
+      after
+        File.rm(temp_inits)
+      end
+    end
+
+    test "returns error for non-existent inits file" do
+      # Create a temporary executable file for testing
+      temp_exe = Path.join(System.tmp_dir!(), "fake_exe")
+      File.write!(temp_exe, "#!/bin/bash\necho fake")
+
+      try do
+        model = %{exe_file: temp_exe}
+        data = %{"N" => 5}
+
+        result = CmdStan.Model.diagnose(model, data: data, inits: "/nonexistent.json")
+        assert {:error, {:inits_file_not_found, "/nonexistent.json"}} = result
+      after
+        File.rm(temp_exe)
+      end
+    end
+
+    test "diagnose_fit validates fit has csv_files" do
+      fit = %{draws: %{}, metadata: %{}, diagnostics: %{}}
+      assert {:error, :no_csv_files_in_fit} = CmdStan.Model.diagnose_fit(fit)
+    end
+
+    test "diagnose_fit returns error when diagnose executable not found" do
+      fit = %{csv_files: ["/tmp/test.csv"]}
+      result = CmdStan.Model.diagnose_fit(fit)
+      # Will fail if diagnose executable doesn't exist or CmdStan not found
+      assert match?({:error, _}, result)
+    end
+  end
+
   describe "summary/2" do
     test "validates fit has csv_files" do
       fit = %{draws: %{}, metadata: %{}, diagnostics: %{}}
